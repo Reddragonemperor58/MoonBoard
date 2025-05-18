@@ -168,6 +168,44 @@ function moodboardReducer(state: MoodboardState, action: MoodboardAction): Moodb
       };
     }
     
+    case 'UPDATE_STICKER_ZINDEX': {
+      const { id, zIndex } = action.payload;
+      
+      if (!state.stickers[id]) {
+        return state;
+      }
+      
+      return {
+        ...state,
+        stickers: {
+          ...state.stickers,
+          [id]: {
+            ...state.stickers[id],
+            zIndex
+          }
+        }
+      };
+    }
+    
+    case 'UPDATE_STICKER_CONTENT': {
+      const { id, content } = action.payload;
+      
+      if (!state.stickers[id]) {
+        return state;
+      }
+      
+      return {
+        ...state,
+        stickers: {
+          ...state.stickers,
+          [id]: {
+            ...state.stickers[id],
+            content
+          }
+        }
+      };
+    }
+    
     case 'SELECT_STICKER': {
       return {
         ...state,
@@ -186,6 +224,13 @@ function moodboardReducer(state: MoodboardState, action: MoodboardAction): Moodb
       return {
         ...state,
         isDragging: false
+      };
+    }
+    
+    case 'LOAD_STATE': {
+      return {
+        ...action.payload,
+        isDragging: false // Always reset dragging state on load
       };
     }
     

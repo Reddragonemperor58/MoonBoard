@@ -40,6 +40,9 @@ export type MoodboardAction =
   | { type: 'MOVE_STICKER'; payload: { stickerId: string; x: number; y: number } }
   | { type: 'RESIZE_STICKER'; payload: { id: string; width: number; height: number } }
   | { type: 'ROTATE_STICKER'; payload: { id: string; rotation: number } }
+  | { type: 'UPDATE_STICKER_ZINDEX'; payload: { id: string; zIndex: number } }
+  | { type: 'UPDATE_STICKER_CONTENT'; payload: { id: string; content: string } }
   | { type: 'SELECT_STICKER'; payload: { stickerId: string | null } } 
   | { type: 'START_DRAG' }
-  | { type: 'END_DRAG' };
+  | { type: 'END_DRAG' } 
+  | { type: 'LOAD_STATE'; payload: MoodboardState };

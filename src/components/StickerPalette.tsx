@@ -43,7 +43,7 @@ const DraggableSticker: React.FC<DraggableStickerProps> = ({ type, content, icon
 
   return (
     <div
-      className="flex items-center justify-center p-2 bg-white border border-gray-200 rounded shadow-sm cursor-move hover:border-blue-300 transition-colors"
+      className="flex items-center justify-center p-2 bg-gray-800 border border-gray-700 rounded shadow-sm cursor-move hover:border-blue-500 transition-colors text-white"
       draggable
       onDragStart={handleDragStart}
     >
@@ -54,7 +54,7 @@ const DraggableSticker: React.FC<DraggableStickerProps> = ({ type, content, icon
 
 const StickerPalette: React.FC = () => {
   return (
-    <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-md">
+    <div className="p-4 bg-gray-800 border border-gray-700 rounded-lg shadow-md text-white">
       <h2 className="text-lg font-semibold mb-3">Stickers</h2>
       <div className="grid grid-cols-3 gap-2">
         {STICKER_TYPES.map((sticker, index) => (

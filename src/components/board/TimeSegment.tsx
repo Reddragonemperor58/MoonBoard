@@ -5,7 +5,8 @@ import type { Sticker as StickerType } from '../../types/moodboard';
 import { Resizable } from 're-resizable';
 import { TimeSegment as TimeSegmentType } from '../../types/moodboard';
 import { useMoodboard } from '../../context/MoodboardContext';
-import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, PlusIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type StickerPayload = Omit<StickerType, 'id' | 'timeSegmentId'> & {
   timeSegmentId: string;
@@ -23,6 +24,7 @@ export const TimeSegment: React.FC<TimeSegmentProps> = ({ segment, onUpdate, onD
   const { dispatch, state } = useMoodboard();
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(segment.title);
+  const [isHovered, setIsHovered] = useState(false);
   const { setNodeRef, isOver } = useDroppable({
     id: segment.id,
     data: {
@@ -34,6 +36,7 @@ export const TimeSegment: React.FC<TimeSegmentProps> = ({ segment, onUpdate, onD
 
   // Add a ref to the content area for accurate drop positioning
   const contentRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTitle(e.target.value);
@@ -51,211 +54,253 @@ export const TimeSegment: React.FC<TimeSegmentProps> = ({ segment, onUpdate, onD
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleTitleBlur();
+      setIsEditing(false);
+      if (title !== segment.title) {
+        dispatch({
+          type: 'RENAME_SEGMENT',
+          payload: { id: segment.id, title },
+        });
+      }
+    } else if (e.key === 'Escape') {
+      setTitle(segment.title);
+      setIsEditing(false);
     }
   };
 
-  const handleEditTitle = () => {
+  const startEditing = useCallback(() => {
     setIsEditing(true);
-  };
-
-  const handleDeleteSegment = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onDelete(segment.id);
-  };
-
-  const handleResizeStop = (e: any, direction: any, ref: HTMLElement, d: any) => {
-    const newWidth = parseInt(ref.style.width, 10);
-    const newHeight = parseInt(ref.style.height, 10);
-
-    if (!isNaN(newWidth) && !isNaN(newHeight)) {
-      dispatch({
-        type: 'RESIZE_SEGMENT',
-        payload: {
-          id: segment.id,
-          width: newWidth,
-          height: newHeight,
-        },
-      });
-    }
-  };
+    // Focus the input field after rendering
+    setTimeout(() => {
+      if (titleInputRef.current) {
+        titleInputRef.current.focus();
+        titleInputRef.current.select();
+      }
+    }, 10);
+  }, []);
 
   // Filter stickers for this segment
-  const segmentStickers = useMemo(() => {
-    return Object.values(state.stickers).filter(sticker => sticker.timeSegmentId === segment.id);
+  const stickers = useMemo(() => {
+    return Object.values(state.stickers).filter(
+      (sticker) => sticker.timeSegmentId === segment.id
+    );
   }, [state.stickers, segment.id]);
 
-  // Handle drop event with proper error handling
+  // Handle sticker drop from palette or another segment
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     
     try {
-      // Try multiple data transfer methods
-      let stickerData;
+      // Try to parse the sticker data from dataTransfer
+      const stickerData = JSON.parse(e.dataTransfer.getData('application/json'));
       
-      // First try getting the data from dataTransfer
-      const jsonData = e.dataTransfer.getData('application/json');
-      const textData = e.dataTransfer.getData('text');
-      
-      // Try to parse JSON data if available
-      if (jsonData) {
-        try {
-          stickerData = JSON.parse(jsonData);
-        } catch (err) {
-          console.log('Error parsing JSON data:', err);
-        }
-      }
-      
-      // If no valid JSON data, try with text data
-      if (!stickerData && textData) {
-        try {
-          stickerData = JSON.parse(textData);
-        } catch (err) {
-          console.log('Error parsing text data:', err);
-        }
-      }
-      
-      // If we have valid sticker data
-      if (stickerData && typeof stickerData === 'object') {
-        // Calculate drop position relative to the content area
-        const contentRect = contentRef.current?.getBoundingClientRect();
-        
-        if (contentRect) {
-          const x = Math.max(0, e.clientX - contentRect.left);
-          const y = Math.max(0, e.clientY - contentRect.top);
+      if (stickerData && (stickerData.type === 'text' || stickerData.type === 'icon' || stickerData.type === 'image')) {
+        // Calculate position relative to the content area
+        if (contentRef.current) {
+          const rect = contentRef.current.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
           
-          // Create sticker payload with the time segment id and position
-          const payload: StickerPayload = {
+          // Create sticker at the drop position
+          const newSticker: StickerPayload = {
             ...stickerData,
             timeSegmentId: segment.id,
             x,
             y,
+            zIndex: 1,
+            rotation: 0,
           };
           
-          // If onAddSticker callback is provided, use it
-          if (onAddSticker) {
-            onAddSticker(payload);
-          } else {
-            // Otherwise, directly dispatch to the state
-            const sticker: StickerType = {
-              id: crypto.randomUUID(),
-              ...payload,
-              zIndex: 1,
-              rotation: 0,
-            };
-            
-            dispatch({
-              type: 'ADD_STICKER',
-              payload: sticker,
-            });
-          }
+          // Add the sticker to the board through context
+          dispatch({
+            type: 'ADD_STICKER',
+            payload: {
+              ...newSticker,
+              id: `sticker-${Date.now()}`, // Generate unique ID
+            }
+          });
         }
-      } else {
-        console.log('Invalid or missing sticker data');
       }
     } catch (error) {
-      console.log('Error processing sticker data:', error);
-      
-      // Fallback: create a default text sticker at mouse position
-      if (contentRef.current) {
-        const contentRect = contentRef.current.getBoundingClientRect();
-        const x = Math.max(0, e.clientX - contentRect.left);
-        const y = Math.max(0, e.clientY - contentRect.top);
-        
-        const defaultSticker: StickerType = {
-          id: crypto.randomUUID(),
-          timeSegmentId: segment.id,
-          type: 'text',
-          content: 'New sticker',
-          x,
-          y,
-          width: 150,
-          height: 100,
-          rotation: 0,
-          zIndex: 1,
-        };
-        
-        dispatch({
-          type: 'ADD_STICKER',
-          payload: defaultSticker,
-        });
-      }
+      console.error('Error processing dropped sticker:', error);
     }
   };
 
+  // Handle drag over to prevent default behavior
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
 
+  // Handle the resizing of the segment
+  const handleResizeStop = (e: MouseEvent | TouchEvent, direction: any, ref: HTMLElement, delta: { width: number, height: number }) => {
+    dispatch({
+      type: 'RESIZE_SEGMENT',
+      payload: {
+        id: segment.id,
+        width: segment.width + delta.width,
+        height: segment.height + delta.height,
+      }
+    });
+  };
+
+  // Calculate the day number from the title (if it contains "Day X")
+  const dayNumber = useMemo(() => {
+    const match = segment.title.match(/Day\s+(\d+)/i);
+    return match ? parseInt(match[1], 10) : null;
+  }, [segment.title]);
+
   return (
-    <Resizable
-      size={{ width: segment.width, height: segment.height }}
-      onResizeStop={handleResizeStop}
-      minWidth={300}
-      minHeight={200}
-      className="relative bg-white dark:bg-gray-800 rounded-lg shadow-lg dark:shadow-gray-700 p-4 border-2 border-dashed transition-colors border-gray-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500"
-      style={{
-        zIndex: isOver ? 2 : 1,
-      }}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.2 }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="relative z-10"
     >
-      <div
-        id={segment.id}
-        ref={setNodeRef}
-        className="w-full h-full flex flex-col relative"
-        style={{ minHeight: '100%', position: 'relative', overflow: 'hidden' }}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
+      <Resizable
+        size={{ width: segment.width, height: segment.height }}
+        minWidth={200}
+        minHeight={150}
+        onResizeStop={handleResizeStop}
+        enable={{
+          top: false,
+          right: true,
+          bottom: true,
+          left: false,
+          topRight: false,
+          bottomRight: true,
+          bottomLeft: false,
+          topLeft: false,
+        }}
+        handleClasses={{
+          right: "w-3 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors",
+          bottom: "h-3 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors",
+          bottomRight: "w-5 h-5 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors rounded-br-lg",
+        }}
       >
-        <div className="flex items-center justify-between mb-4">
-          {isEditing ? (
-            <input
-              type="text"
-              value={title}
-              onChange={handleTitleChange}
-              onBlur={handleTitleBlur}
-              onKeyDown={handleKeyDown}
-              autoFocus
-              className="text-xl font-bold border-b-2 border-blue-500 focus:outline-none bg-transparent"
-            />
-          ) : (
-            <h3 
-              className="text-xl font-bold cursor-pointer hover:text-blue-500 dark:text-white dark:hover:text-blue-400"
-              onClick={handleEditTitle}
-            >
-              {segment.title}
-            </h3>
-          )}
+        <div
+          ref={setNodeRef}
+          className={`
+            flex flex-col h-full 
+            bg-white dark:bg-gray-800
+            shadow-lg rounded-lg
+            border-2 transition-all duration-200
+            ${isOver ? 'border-blue-500 ring-4 ring-blue-300 ring-opacity-50' : 'border-gray-200 dark:border-gray-700'}
+            ${isOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
+          `}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+        >
+          {/* Header/Title Section */}
+          <div 
+            className={`
+              px-3 py-2 flex items-center justify-between
+              border-b border-gray-200 dark:border-gray-700
+              transition-all duration-200
+              ${isOver ? 'bg-blue-100 dark:bg-blue-800/30' : 'bg-gray-50 dark:bg-gray-800/50'}
+            `}
+          >
+            <div className="flex items-center space-x-2">
+              {dayNumber !== null && (
+                <div className="flex items-center justify-center bg-blue-600 text-white dark:bg-blue-500 rounded-full w-7 h-7 text-xs font-bold">
+                  {dayNumber}
+                </div>
+              )}
+              
+              {!isEditing ? (
+                <h3 
+                  className="font-medium text-gray-800 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+                  onClick={startEditing}
+                >
+                  {title}
+                </h3>
+              ) : (
+                <input
+                  ref={titleInputRef}
+                  type="text"
+                  value={title}
+                  onChange={handleTitleChange}
+                  onBlur={handleTitleBlur}
+                  onKeyDown={handleKeyDown}
+                  className="text-sm bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-700 rounded p-1 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Day title"
+                />
+              )}
+            </div>
+            
+            {/* Controls */}
+            <AnimatePresence>
+              {(isHovered || isEditing) && (
+                <motion.div 
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  className="flex items-center space-x-1"
+                >
+                  <button
+                    onClick={startEditing}
+                    className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    aria-label="Edit title"
+                  >
+                    <PencilIcon className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => onDelete(segment.id)}
+                    className="p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    aria-label="Delete day"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           
-          <div className="flex gap-2">
-            <button
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
-              title="Edit Title"
-              onClick={handleEditTitle}
-            >
-              <PencilIcon className="w-4 h-4" />
-            </button>
-            <button
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 dark:text-red-400"
-              title="Delete Day"
-              onClick={handleDeleteSegment}
-            >
-              <TrashIcon className="w-4 h-4" />
-            </button>
+          {/* Content Area */}
+          <div 
+            ref={contentRef}
+            className={`
+              flex-1 p-4 relative overflow-hidden
+              ${isOver ? 'bg-gradient-to-b from-blue-50 to-white dark:from-blue-900/10 dark:to-gray-800/50' : ''}
+            `}
+          >
+            {/* Stickers */}
+            {stickers.map(sticker => (
+              <StickerComponent
+                key={sticker.id}
+                sticker={sticker}
+              />
+            ))}
+            
+            {/* Empty State / Drop Indicator */}
+            {stickers.length === 0 && (
+              <div className="h-full flex flex-col items-center justify-center text-center text-gray-400 dark:text-gray-400 transition-colors duration-200">
+                <CalendarDaysIcon className="w-10 h-10 mb-2 opacity-30" />
+                <p className="text-sm font-medium">Drop stickers here</p>
+                <p className="text-xs mt-1">Drag items from the sticker panel</p>
+              </div>
+            )}
+            
+            {/* Drop Indicator Overlay */}
+            <AnimatePresence>
+              {isOver && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-md pointer-events-none"
+                >
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-2">
+                    <PlusIcon className="w-6 h-6" />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
-        
-        <div 
-          ref={contentRef}
-          className="flex-1 relative"
-          style={{ minHeight: '200px' }}
-        >
-          {/* Stickers */}
-          {segmentStickers.map(sticker => (
-            <StickerComponent key={sticker.id} sticker={sticker} />
-          ))}
-        </div>
-      </div>
-    </Resizable>
+      </Resizable>
+    </motion.div>
   );
 };
 

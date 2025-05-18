@@ -1,0 +1,53 @@
+.board-draggable {
+  position: relative !important;
+}
+
+.board-drag-handle {
+  cursor: grab !important;
+  user-select: none;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.board-drag-handle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.board-drag-handle:active {
+  cursor: grabbing !important;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Resize cursors for canvas and board */
+.resize-e {
+  cursor: e-resize !important;
+}
+
+.resize-s {
+  cursor: s-resize !important;
+}
+
+.resize-w {
+  cursor: w-resize !important;
+}
+
+.resize-n {
+  cursor: n-resize !important;
+}
+
+.resize-se {
+  cursor: se-resize !important;
+}
+
+.resize-sw {
+  cursor: sw-resize !important;
+}
+
+.resize-ne {
+  cursor: ne-resize !important;
+}
+
+.resize-nw {
+  cursor: nw-resize !important;
+}

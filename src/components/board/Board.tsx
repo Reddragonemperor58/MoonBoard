@@ -1,4 +1,5 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
+import Draggable from 'react-draggable';
 import { useMoodboard } from '../../context/MoodboardContext';
 import TimeSegment from './TimeSegment';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,6 +13,29 @@ type StickerPayload = Omit<StickerType, 'id' | 'timeSegmentId'> & {
 
 const Board: React.FC = () => {
   const { state, dispatch } = useMoodboard();
+  
+  // Position state for draggable functionality
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const nodeRef = useRef<HTMLDivElement>(null);
+  
+  // Load saved position from localStorage
+  useEffect(() => {
+    try {
+      const savedPosition = localStorage.getItem('board-position');
+      if (savedPosition) {
+        setPosition(JSON.parse(savedPosition));
+      }
+    } catch (e) {
+      console.error('Error loading saved position:', e);
+    }
+  }, []);
+  
+  // Save position when dragging stops
+  const handleDragStop = (_e: any, data: { x: number; y: number }) => {
+    const newPos = { x: data.x, y: data.y };
+    setPosition(newPos);
+    localStorage.setItem('board-position', JSON.stringify(newPos));
+  };
   
   // Handle adding a new time segment
   const handleAddTimeSegment = useCallback(() => {
@@ -80,8 +104,17 @@ const Board: React.FC = () => {
   }, [dispatch]);
   
   return (
-    <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg shadow">
-      <div className="flex justify-between items-center mb-4">
+    <Draggable
+      nodeRef={nodeRef}
+      position={position}
+      onStop={handleDragStop}
+      handle=".board-drag-handle"
+      bounds="parent"
+    >
+      <div 
+        ref={nodeRef} 
+        className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg shadow">
+      <div className="flex justify-between items-center mb-4 board-drag-handle cursor-move">
         <h2 className="text-xl font-bold text-gray-800 dark:text-white">Your Moodboard</h2>
         <button 
           onClick={handleAddTimeSegment}
@@ -106,6 +139,7 @@ const Board: React.FC = () => {
         })}
       </div>
     </div>
+    </Draggable>
   );
 };
 
