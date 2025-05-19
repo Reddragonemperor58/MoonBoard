@@ -35,6 +35,11 @@ const MoodboardControls = ({ darkMode, isMobile }: { darkMode: boolean; isMobile
     const checkControls = () => {
       // @ts-ignore - Access the exposed moodboardControls
       if (window.moodboardControls) {
+        // Debug logging to help identify available controls
+        if (!controls) {
+          console.log('Available moodboardControls:', Object.keys(window.moodboardControls));
+        }
+        
         // @ts-ignore
         setControls({
           ...window.moodboardControls,
@@ -111,7 +116,14 @@ const MoodboardControls = ({ darkMode, isMobile }: { darkMode: boolean; isMobile
         className={`flex gap-2 ${isMobile ? 'flex-col' : ''}`}
       >
         <button
-          onClick={() => controls.toggleSettings()}
+          onClick={() => {
+            console.log('Settings button clicked, control function:', controls.toggleSettings);
+            if (controls.toggleSettings) {
+              controls.toggleSettings();
+            } else {
+              console.error('toggleSettings function is undefined!');
+            }
+          }}
           className={`p-2 rounded-full shadow transition-colors ${buttonBaseStyle} ${isMobile ? 'w-full flex items-center justify-center gap-2' : ''}`}
           title="Settings"
         >
@@ -119,7 +131,14 @@ const MoodboardControls = ({ darkMode, isMobile }: { darkMode: boolean; isMobile
           {isMobile && <span>Settings</span>}
         </button>
         <button
-          onClick={() => controls.handleExport()}
+          onClick={() => {
+            console.log('Export button clicked, control function:', controls.handleExport);
+            if (controls.handleExport) {
+              controls.handleExport();
+            } else {
+              console.error('handleExport function is undefined!');
+            }
+          }}
           className={`p-2 rounded-full shadow transition-colors ${buttonBaseStyle} ${isMobile ? 'w-full flex items-center justify-center gap-2' : ''}`}
           title={`Export as ${controls.exportFormat?.toUpperCase()}`}
         >
@@ -150,7 +169,7 @@ const MoodboardControls = ({ darkMode, isMobile }: { darkMode: boolean; isMobile
             className={`flex ${isMobile ? 'flex-col' : ''} gap-2 ${darkMode ? 'bg-gray-700' : 'bg-white'} p-2 rounded-lg shadow`}
           >
             <button
-              onClick={() => controls.bringToFront()}
+              onClick={() => controls.handleBringToFront()}
               className={`p-1.5 bg-gray-100 dark:bg-gray-600 rounded hover:bg-gray-200 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 transition-colors ${isMobile ? 'w-full flex items-center justify-center gap-2' : ''}`}
               title="Bring to front"
             >
@@ -158,7 +177,7 @@ const MoodboardControls = ({ darkMode, isMobile }: { darkMode: boolean; isMobile
               {isMobile && <span>Bring to Front</span>}
             </button>
             <button
-              onClick={() => controls.sendToBack()}
+              onClick={() => controls.handleSendToBack()}
               className={`p-1.5 bg-gray-100 dark:bg-gray-600 rounded hover:bg-gray-200 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 transition-colors ${isMobile ? 'w-full flex items-center justify-center gap-2' : ''}`}
               title="Send to back"
             >

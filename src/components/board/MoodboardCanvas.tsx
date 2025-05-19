@@ -10,6 +10,9 @@ import { ListView } from './ListView';
 import { GridView } from './GridView';
 import { MoodboardState, TimeSegment } from '../../types/moodboard';
 import { loadState, loadSettings, debouncedSaveState, saveSettings } from '../../utils/state-management';
+import SettingsPanel from '../SettingsPanel';
+import { exportElementAsPNG } from '../../utils/export-png';
+
 // Global types are automatically included by TypeScript, no need to import
 
 // Define the initial canvas dimensions
@@ -21,18 +24,19 @@ const MoodboardCanvas: React.FC = () => {
   const { state, dispatch } = useMoodboard();
   const { addToast } = useToast();
   const { viewMode } = useViewMode();
-  
-  // State
+    // State
   const [canvasBackground, setCanvasBackground] = useState('#1a1a1a');
   const [canvasWidth] = useState(INITIAL_CANVAS_WIDTH);
   const [canvasHeight] = useState(INITIAL_CANVAS_HEIGHT);
   const [isDarkMode] = useState(true);
   const [history, setHistory] = useState<MoodboardState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [exportFormat] = useState<'png' | 'pdf'>('png');
+  const [exportFormat, setExportFormat] = useState<'png' | 'pdf'>('png');
+  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   
   // Refs for transform wrapper
   const transformRef = useRef<any>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
 
   // Log view mode changes for debugging
   useEffect(() => {
@@ -268,19 +272,49 @@ const MoodboardCanvas: React.FC = () => {
         });
         addToast('Sent sticker to back', 'info');
       }
-    }
-  }, [state.selectedStickerId, state.stickers, dispatch, addToast]);
+    }  }, [state.selectedStickerId, state.stickers, dispatch, addToast]);
 
   // Export functionality
   const handleExport = useCallback(() => {
     addToast(`Exporting as ${exportFormat}...`, 'info');
-    console.log(`Export as ${exportFormat} requested`);
-  }, [exportFormat, addToast]);
-
+    console.log(`Export as ${exportFormat} requested - Function executed!`);
+    
+    if (!boardRef.current) {
+      addToast('Could not capture the board. Please try again.', 'error');
+      return;
+    }
+    
+    if (exportFormat === 'png') {
+      // Show loading indicator
+      addToast('Generating PNG, please wait...', 'info');
+      
+      // Use our utility function to export the board
+      exportElementAsPNG(boardRef.current, canvasBackground)
+        .then(() => {
+          addToast('PNG exported successfully!', 'success');
+        })
+        .catch((error: Error) => {
+          console.error('PNG export error:', error);
+          addToast('Failed to export PNG. Please try again.', 'error');
+        });
+    } else if (exportFormat === 'pdf') {
+      // PDF export logic
+      addToast('PDF export coming soon!', 'info');
+    }
+  }, [exportFormat, addToast, canvasBackground]);
   // Settings toggle
   const toggleSettings = useCallback(() => {
-    addToast('Settings panel requested', 'info');
-    console.log('Toggle settings requested');
+    setIsSettingsPanelOpen(prevState => !prevState);
+    addToast('Settings panel toggled', 'info');
+    console.log('Toggle settings requested - Function executed!');
+  }, [addToast]);
+  
+  // Dark mode toggle
+  const handleDarkModeToggle = useCallback(() => {
+    // This is just a placeholder since we're not actually implementing dark mode toggle
+    // In a real implementation, you would update the isDarkMode state and apply changes
+    addToast('Dark mode toggle requested', 'info');
+    console.log('Dark mode toggle requested - Function executed!');
   }, [addToast]);
 
   // Key event handlers
@@ -344,15 +378,36 @@ const MoodboardCanvas: React.FC = () => {
     sendToBack, 
     toggleSettings
   ]);
+  // Handle export format change
+  const handleExportFormatChange = useCallback((format: 'png' | 'pdf') => {
+    setExportFormat(format);
+    addToast(`Export format set to ${format.toUpperCase()}`, 'info');
+    saveSettings({
+      background: canvasBackground,
+      width: canvasWidth,
+      height: canvasHeight,
+      darkMode: isDarkMode,
+      exportFormat: format
+    });
+  }, [canvasBackground, canvasWidth, canvasHeight, isDarkMode, addToast]);
 
   // Return JSX
   return (
     <div 
       role="complementary"
       aria-label="Moodboard canvas"
-      className="moodboard-canvas relative w-full h-full"
+      className="moodboard-canvas relative w-full h-full overflow-hidden"
       style={{ minHeight: '600px' }}
-    >
+    >      {/* Settings Panel */}
+      <SettingsPanel 
+        isOpen={isSettingsPanelOpen}
+        onClose={() => setIsSettingsPanelOpen(false)}
+        isDarkMode={isDarkMode}
+        onDarkModeToggle={handleDarkModeToggle}
+        exportFormat={exportFormat}
+        onExportFormatChange={handleExportFormatChange}
+      />
+      
       {viewMode === 'standard' ? (
         <TransformWrapper
           ref={transformRef}
@@ -370,6 +425,7 @@ const MoodboardCanvas: React.FC = () => {
             }}
           >
             <div 
+              ref={boardRef}
               className="canvas-container" 
               style={{ 
                 width: `${INITIAL_CANVAS_WIDTH}px`, 

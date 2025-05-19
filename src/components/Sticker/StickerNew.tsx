@@ -1,30 +1,31 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Sticker as StickerType } from '../../types/moodboard';
-import { Resizable } from 're-resizable';
+import { Resizable as ResizableComponent } from 're-resizable';
 import { motion } from 'framer-motion';
 import { TrashIcon, ArrowsPointingOutIcon } from '@heroicons/react/24/outline';
 import { useMoodboard } from '../../context/MoodboardContext';
 import { Z_INDEX } from '../../utils/z-index';
+
+// Cast Resizable to any to avoid type incompatibility issues
+const Resizable = ResizableComponent as any;
 
 interface StickerProps {
   sticker: StickerType;
 }
 
 export const Sticker: React.FC<StickerProps> = ({ sticker }) => {
-  const { dispatch } = useMoodboard();
-  const [isHovered, setIsHovered] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
+  const { dispatch } = useMoodboard();  const [isHovered, setIsHovered] = useState(false);
+  const [_isResizing, setIsResizing] = useState(false); // Prefix with underscore to indicate it's set but not read
   const [isDragging, setIsDragging] = useState(false);
   const [currentDimensions, setCurrentDimensions] = useState({
     width: sticker.width,
     height: sticker.height
-  });
-  
-  // References for mouse drag calculations
+  });  // References for mouse drag calculations
   const stickerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
   const dragStartStickerPos = useRef({ x: sticker.x, y: sticker.y });
+  const lastMousePosition = useRef({ x: 0, y: 0 });
   // Handle mouse down to start moving the sticker
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Only handle primary mouse button (left click)
@@ -54,9 +55,7 @@ export const Sticker: React.FC<StickerProps> = ({ sticker }) => {
         id: sticker.id,
         zIndex: Z_INDEX.STICKER_DRAGGING
       }
-    });
-    
-    // Add global event listeners for mouse move and mouse up
+    });    // Add global event listeners for mouse move and mouse up
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
     
@@ -64,13 +63,15 @@ export const Sticker: React.FC<StickerProps> = ({ sticker }) => {
     // This will help prevent parent TimeSegment from being affected
     document.body.classList.add('sticker-dragging');
   }, [sticker, dispatch]);
-  
-  // Handle mouse move to update position during drag
+    // Handle mouse move to update position during drag
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging) return;
     
     e.preventDefault();
     e.stopPropagation();
+    
+    // Store the current mouse position for use in handleMouseUp
+    lastMousePosition.current = { x: e.clientX, y: e.clientY };
     
     // Calculate the movement delta
     const dx = e.clientX - dragStartPos.current.x;
@@ -81,18 +82,30 @@ export const Sticker: React.FC<StickerProps> = ({ sticker }) => {
       contentRef.current.style.transform = 
         `translate(${dx}px, ${dy}px)`;
     }
-  }, [isDragging]);
-    // Handle mouse up to finalize position
-  const handleMouseUp = useCallback(() => {
+  }, [isDragging]);// Handle mouse up to finalize position
+  const handleMouseUp = useCallback((e?: MouseEvent) => {
     if (!isDragging) return;
     
     // Remove event listeners
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
+      // Calculate the final position - if we don't have an event, use the last known position
+    // from our lastMousePosition ref that's updated during mouse move
+    let currentMouseX = 0;
+    let currentMouseY = 0;
     
-    // Calculate the final position
-    const dx = dragStartPos.current.x ? (window.event as MouseEvent).clientX - dragStartPos.current.x : 0;
-    const dy = dragStartPos.current.y ? (window.event as MouseEvent).clientY - dragStartPos.current.y : 0;
+    if (e) {
+      // Use the event if provided
+      currentMouseX = e.clientX;
+      currentMouseY = e.clientY;
+    } else {
+      // Fallback - use the last recorded position from handleMouseMove
+      currentMouseX = lastMousePosition.current.x;
+      currentMouseY = lastMousePosition.current.y;
+    }
+    
+    const dx = dragStartPos.current.x ? currentMouseX - dragStartPos.current.x : 0;
+    const dy = dragStartPos.current.y ? currentMouseY - dragStartPos.current.y : 0;
     
     // Reset inline transform
     if (contentRef.current) {
@@ -167,9 +180,8 @@ export const Sticker: React.FC<StickerProps> = ({ sticker }) => {
       }
     });
   }, [dispatch, sticker.id]);
-
   // Handle resize
-  const handleResize = useCallback((_e: any, _direction: any, ref: HTMLElement) => {
+  const handleResize = useCallback((_e: React.MouseEvent | TouchEvent, _direction: string, ref: HTMLElement) => {
     const width = ref.offsetWidth;
     const height = ref.offsetHeight;
     
@@ -187,7 +199,7 @@ export const Sticker: React.FC<StickerProps> = ({ sticker }) => {
   }, [dispatch, sticker.id]);
 
   // Handle resize stop
-  const handleResizeStop = useCallback((_e: any, _direction: any, ref: HTMLElement) => {
+  const handleResizeStop = useCallback((_e: React.MouseEvent | TouchEvent, _direction: string, ref: HTMLElement) => {
     const width = ref.offsetWidth;
     const height = ref.offsetHeight;
     
@@ -282,13 +294,12 @@ export const Sticker: React.FC<StickerProps> = ({ sticker }) => {
       onClick={handleStickerClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-    >
-      <Resizable
+    >      <Resizable
         size={{ 
           width: currentDimensions.width, 
           height: currentDimensions.height 
         }}
-        onResizeStart={(e) => {
+        onResizeStart={(e: React.MouseEvent | TouchEvent) => {
           e.stopPropagation();
           handleResizeStart();
         }}

@@ -16,6 +16,7 @@ interface MoodboardSettings {
   width: number;
   height: number;
   darkMode: boolean;
+  exportFormat?: 'png' | 'pdf'; // Make it optional for backward compatibility
 }
 
 // Validate state structure
@@ -78,13 +79,18 @@ export const saveSettings = (settings: MoodboardSettings): void => {
     // Validate settings
     if (!settings || typeof settings !== 'object') {
       throw new ValidationError('Invalid settings format');
-    }
-
-    if (typeof settings.background !== 'string' ||
+    }    if (typeof settings.background !== 'string' ||
         typeof settings.width !== 'number' ||
         typeof settings.height !== 'number' ||
         typeof settings.darkMode !== 'boolean') {
       throw new ValidationError('Missing or invalid settings properties');
+    }
+    
+    // Validate export format if present
+    if (settings.exportFormat !== undefined && 
+        settings.exportFormat !== 'png' && 
+        settings.exportFormat !== 'pdf') {
+      throw new ValidationError('Invalid export format');
     }
 
     try {

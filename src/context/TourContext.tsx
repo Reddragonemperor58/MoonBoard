@@ -9,6 +9,7 @@ interface TourContextType {
   stepIndex: number;
   run: boolean;
   setRun: (run: boolean) => void;
+  resetTourState?: () => void; // Optional for production
 }
 
 const defaultContext: TourContextType = {
@@ -19,6 +20,7 @@ const defaultContext: TourContextType = {
   stepIndex: 0,
   run: false,
   setRun: () => {},
+  resetTourState: undefined,
 };
 
 const TourContext = createContext<TourContextType>(defaultContext);
@@ -42,7 +44,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     stepsRef.current = [
       {
         target: 'body',
-        content: 'Welcome to Moodboard! Let\'s take a quick tour of the features!',
+        content: 'Welcome to MoonBoard! Let\'s take a quick tour of the features!',
         placement: 'center' as const,
         title: '👋 Welcome',
         disableBeacon: true,
@@ -50,21 +52,28 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hideCloseButton: true,
       },
       {
-        target: '.moodboard-canvas',
+        target: '.max-w-7xl .flex-1',
         content: 'This is your main canvas where you\'ll organize your trip timeline. You can pan around by clicking and dragging.',
         placement: 'center' as const,
         title: 'Your Trip Canvas',
         disableOverlay: true,
       },
       {
-        target: 'button[title="Add Sticker"]',
-        content: 'Click here to open the sticker palette and add different types of content to your board.',
-        placement: 'right' as const,
-        title: 'Add Stickers',
+        target: '.p-4.bg-gray-800.border.border-gray-700.rounded-lg',
+        content: 'This is the sticker palette where you can find different types of content to add to your board.',
+        placement: 'left' as const,
+        title: 'Sticker Palette',
         disableBeacon: true,
       },
       {
-        target: 'button[title="Add Day"]',
+        target: '.grid.grid-cols-3.gap-2',
+        content: 'Drag these stickers and drop them onto time segments to add content. You can add text notes, icons, images, and more.',
+        placement: 'bottom' as const,
+        title: 'Drag & Drop Stickers',
+        disableBeacon: true,
+      },
+      {
+        target: 'button[title="Add new day"]',
         content: 'Click here to add a new day segment to organize your trip timeline.',
         placement: 'right' as const,
         title: 'Add Day Segments',
@@ -72,30 +81,37 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
       {
         target: '.time-segment',
-        content: 'This is a time segment. You can drag it to move or resize it to adjust the duration.',
+        content: 'This is a time segment. You can drag it to move or resize it to adjust the duration. You can also edit the title by clicking on it.',
         placement: 'bottom' as const,
         title: 'Time Segments',
         disableBeacon: true,
       },
       {
-        target: 'button[title="Reset zoom"]',
+        target: '.flex.gap-2 button:first-child',
         content: 'Use these controls to zoom in, zoom out, or reset the zoom level of your board.',
         placement: 'left' as const,
         title: 'Zoom Controls',
         disableBeacon: true,
       },
       {
-        target: 'button[title="Export as Image"]',
-        content: 'When you\'re happy with your moodboard, click here to export it as an image.',
+        target: 'button[title="Open Settings"]',
+        content: 'Configure settings like dark mode and export options here.',
+        placement: 'left' as const,
+        title: 'Settings',
+        disableBeacon: true,
+      },
+      {
+        target: 'button[title="Export"]',
+        content: 'When you\'re happy with your moodboard, click here to export it as an image or PDF.',
         placement: 'left' as const,
         title: 'Export Your Board',
         disableBeacon: true,
       },
       {
         target: 'body',
-        content: 'All set! You can now start creating your perfect trip moodboard. Have fun! ✈️',
+        content: 'All set! You can now start creating your perfect MoonBoard by dragging stickers onto time segments, organizing your content, and exporting your creation when you\'re done. Have fun! ✈️',
         placement: 'center' as const,
-        title: 'Enjoy!',
+        title: 'Ready to Create!',
         disableOverlayClose: false,
         hideCloseButton: false,
       },
@@ -104,10 +120,12 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check if it's the first visit
   useEffect(() => {
-    const hasVisited = localStorage.getItem('moodboard_tour_completed');
-    if (!hasVisited) {
+    const hasCompletedTour = localStorage.getItem('moodboard_tour_completed');
+    // Consider it a first visit if the tour has never been completed
+    if (!hasCompletedTour) {
       setIsFirstVisit(true);
-      localStorage.setItem('moodboard_tour_started', 'true');
+    } else {
+      setIsFirstVisit(false);
     }
     
     // Cleanup function
@@ -136,8 +154,13 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRun(false);
     setShowTour(false);
     setStepIndex(0);
+    
+    // Mark the tour as completed in localStorage so it won't auto-start again
     localStorage.setItem('moodboard_tour_completed', 'true');
+    localStorage.setItem('moonboard_has_visited', 'true');
     setIsFirstVisit(false);
+    
+    console.log('Tour completed and marked in localStorage');
     
     // Clean up any pending timeouts
     window.clearTimeout(autoStartTimeoutRef.current);
@@ -194,52 +217,100 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Auto-start tour on first visit with cleanup
   useEffect(() => {
-    const hasTourStarted = localStorage.getItem('moodboard_tour_started');
+    // Check for first time visit based on lack of any tour-related item in localStorage
+    const hasEverVisited = localStorage.getItem('moonboard_has_visited');
     const hasCompletedTour = localStorage.getItem('moodboard_tour_completed');
     
-    if (isFirstVisit && !showTour && hasTourStarted === 'true' && !hasCompletedTour) {
+    // Only auto-start if this is the very first visit (no record of previous visits)
+    if (!hasEverVisited && !hasCompletedTour && !showTour) {
+      console.log('First time user detected, starting tour automatically');
+      // Mark that the user has visited the site
+      localStorage.setItem('moonboard_has_visited', 'true');
+      
+      // Start the tour after a short delay to let the UI load completely
       autoStartTimeoutRef.current = window.setTimeout(() => {
         startTour();
-        localStorage.removeItem('moodboard_tour_started');
-      }, 1500);
+      }, 1000);
     }
 
     return () => {
       window.clearTimeout(autoStartTimeoutRef.current);
     };
-  }, [isFirstVisit, showTour, startTour]);
+  }, [showTour, startTour]);
 
   // Styles for the tour
   const joyrideStyles = {
     options: {
       zIndex: 10000,
-      primaryColor: '#6366f1',
+      primaryColor: '#3b82f6',
       textColor: '#1f2937',
-      backgroundColor: '#6366f1',
+      overlayColor: 'rgba(0, 0, 0, 0.75)',
+      backgroundColor: '#3b82f6',
       color: 'white',
+      borderRadius: 6,
+      padding: '10px 20px',
+      width: 350,
+    },
+    tooltip: {
+      backgroundColor: 'white',
+      borderRadius: 8,
+      boxShadow: '0 5px 25px rgba(0, 0, 0, 0.2)',
+      padding: '16px',
+    },
+    tooltipTitle: {
+      fontSize: '18px',
+      fontWeight: 600,
+      marginBottom: '8px',
+      color: '#111827',
+    },
+    tooltipContent: {
+      fontSize: '15px',
+      lineHeight: 1.5,
+    },
+    buttonNext: {
+      backgroundColor: '#3b82f6',
       borderRadius: 4,
-      padding: '8px 16px',
+      fontWeight: 500,
     },
     buttonBack: {
-      color: '#6366f1',
-      marginRight: 8,
+      color: '#64748b',
+      marginRight: 12,
     },
     buttonSkip: {
-      color: '#6b7280',
+      color: '#64748b',
     },
   };
 
   const floaterProps = {
     disableAnimation: false,
-    disableFlip: true,
+    disableFlip: false,
+    hideArrow: false,
+    offset: 10,
     styles: {
       floater: {
-        filter: 'none',
-        maxWidth: '400px',
+        filter: 'drop-shadow(0 4px 15px rgba(0, 0, 0, 0.15))',
+        maxWidth: '450px',
+        zIndex: 10001,
+      },
+      arrow: {
+        color: '#fff',
+        length: 8,
+        spread: 10,
       },
     },
   };
 
+  // Helper function to reset tour state (for development purposes)
+  const resetTourState = useCallback(() => {
+    localStorage.removeItem('moodboard_tour_completed');
+    localStorage.removeItem('moonboard_has_visited');
+    setIsFirstVisit(true);
+    console.log('Tour state reset - will auto-start on next refresh');
+  }, []);
+
+  // Only show debug UI in development mode
+  const isDevMode = process.env.NODE_ENV === 'development';
+  
   return (
     <TourContext.Provider
       value={{
@@ -250,9 +321,37 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
         stepIndex,
         run,
         setRun,
+        resetTourState: isDevMode ? resetTourState : undefined,
       }}
     >
       {children}
+      {isDevMode && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '10px',
+            right: '10px',
+            zIndex: 9999,
+            opacity: 0.7,
+            display: 'none', // Hidden by default, change to 'block' for testing
+          }}
+        >
+          <button
+            onClick={resetTourState}
+            style={{
+              padding: '4px 8px',
+              fontSize: '10px',
+              backgroundColor: '#f87171',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            Reset Tour (Dev Only)
+          </button>
+        </div>
+      )}
       <Joyride
         key={`tour-${tourKey}`}
         steps={stepsRef.current}
