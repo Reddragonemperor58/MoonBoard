@@ -1,0 +1,275 @@
+.board-draggable {
+  position: relative !important;
+  touch-action: none; /* Prevent default touch actions on mobile */
+}
+
+.board-drag-handle {
+  cursor: grab !important;
+  user-select: none;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  touch-action: none; /* Prevent default touch actions on mobile */
+}
+
+.board-drag-handle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.board-drag-handle:active {
+  cursor: grabbing !important;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Resize cursors for canvas and board */
+.resize-e {
+  cursor: e-resize !important;
+}
+
+.resize-s {
+  cursor: s-resize !important;
+}
+
+.resize-w {
+  cursor: w-resize !important;
+}
+
+.resize-n {
+  cursor: n-resize !important;
+}
+
+.resize-se {
+  cursor: se-resize !important;
+}
+
+.resize-sw {
+  cursor: sw-resize !important;
+}
+
+.resize-ne {
+  cursor: ne-resize !important;
+}
+
+.resize-nw {
+  cursor: nw-resize !important;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+  .board-drag-handle {
+    padding: 12px; /* Larger touch target */
+  }
+
+  /* Increase touch targets for resize handles */
+  [class^="resize-"] {
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  /* Prevent text selection during touch interactions */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Smooth scrolling for better touch experience */
+  html, body {
+    scroll-behavior: smooth;
+    overscroll-behavior-y: contain;
+  }
+
+  /* Prevent rubber-band effect on iOS */
+  body {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Scrollable container for the main content */
+  main {
+    position: fixed;
+    top: 64px; /* Header height */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Sticker palette mobile optimizations */
+@media (max-width: 768px) {
+  .sticker-palette {
+    position: fixed;
+    bottom: 80px; /* Above the mobile controls */
+    left: 0;
+    right: 0;
+    z-index: 40;
+    max-height: 40vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background-color: rgba(31, 41, 55, 0.95);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px;
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  .sticker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 12px;
+    padding: 8px;
+  }
+
+  .sticker-item {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+  }
+}
+
+/* Base styles */
+.board-draggable {
+  position: relative !important;
+  touch-action: none;
+}
+
+/* Fix for TransformWrapper/TransformComponent */
+.react-transform-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 600px !important;
+}
+
+.react-transform-component {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.canvas-container {
+  margin: 0 auto;
+  background-color: var(--canvas-bg-color, #1a1a1a);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* TimeSegment Visibility Fix */
+.time-segment {
+  width: 100%;
+  min-height: 150px;
+  margin-bottom: 1rem;
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* Resize handle styling */
+.react-resizable-handle {
+  width: 20px !important;
+  height: 20px !important;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  z-index: 20;
+}
+
+.react-resizable-handle-se {
+  bottom: 0;
+  right: 0;
+  cursor: se-resize !important;
+  width: 20px !important;
+  height: 20px !important;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 0 0 4px 0;
+  transition: background-color 0.2s ease;
+}
+
+.react-resizable-handle-se:hover {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Drop success animation */
+.drop-success {
+  animation: pulse 0.3s ease-in-out;
+}
+
+/* Drag over state */
+.drag-over {
+  background-color: rgba(59, 130, 246, 0.1);
+  box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.5);
+  transition: all 0.2s ease;
+}
+
+@keyframes pulse {
+  0% { background-color: rgba(59, 130, 246, 0); }
+  50% { background-color: rgba(59, 130, 246, 0.2); }
+  100% { background-color: rgba(59, 130, 246, 0); }
+}
+
+/* Ensure all view modes display content properly */
+[class*="View"] {
+  min-height: 600px;
+  width: 100%;
+  height: 100%;
+  display: block !important;
+  position: relative;
+  overflow: auto;
+}
+
+/* Timeline View specific fixes */
+.timeline-view {
+  min-height: 500px;
+  padding-bottom: 120px; /* Space for floating controls */
+}
+
+/* Grid View specific fixes */
+[data-testid="grid-view"] {
+  min-height: 500px;
+  display: grid !important;
+}
+
+/* Map View specific fixes */
+[aria-label="Map view"] {
+  min-height: 600px;
+}
+
+/* Z-index hierarchy */
+.moodboard-canvas {
+  position: relative;
+  z-index: 1;
+}
+
+.time-segment {
+  position: relative;
+  z-index: 10;
+}
+
+.sticker-base {
+  position: absolute;
+  z-index: 100;
+}
+
+.sticker-dragging {
+  z-index: 1000 !important;
+  pointer-events: none;
+}
+
+.controls-overlay {
+  z-index: 2000;
+}
+
+.sticker-palette {
+  z-index: 3000;
+}
+
+.dialog-overlay {
+  z-index: 4000;
+}
+
+.mobile-menu {
+  z-index: 5000;
+}
+
+.tour-overlay {
+  z-index: 10000;
+}
